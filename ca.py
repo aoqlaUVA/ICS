@@ -19,7 +19,6 @@ class CASim(Model):
         self.make_param('k', 2)
         self.make_param('width', 50)
         self.make_param('height', 50)
-        # self.make_param('rule', 30, setter=self.setter_rule)
         self.make_param('random', True)
         self.make_param('seed', 50)
         self.make_param('lambda_value', 0.0)
