@@ -2,6 +2,13 @@ import numpy as np
 import hashlib
 from model import Model
 
+SCORES = {
+    ('C', 'C'): (1, 1),
+    ('C', 'D'): (3, 0),
+    ('D', 'C'): (0, 3),
+    ('D', 'D'): (2, 2)
+}
+
 class CASim(Model):
     def __init__(self):
         Model.__init__(self)
@@ -9,42 +16,37 @@ class CASim(Model):
         self.t = 0
         self.rule_set = []
         self.config = None
-        self.quiescent_state = 0
-        self.state_hashes = set()
-        self.transient_length = None
+
+        self.population = []  # Population of strategies
+        self.fitness_scores = []  # Fitness scores for each strategy
+
         self.make_param('pop_size', 100)
         self.make_param('mutation', 0.02)
+        self.make_param('chromosome', 4)
         self.make_param('crossover', 0.7)
         self.make_param('generation', 100)
-
-    def setter_rule(self, val):
-        """Setter for the rule parameter, clipping its value between 0 and the
-        maximum possible rule number."""
-        rule_set_size = self.k ** (2 * self.r + 1)
-        max_rule_number = self.k ** rule_set_size
-        return max(0, min(val, max_rule_number - 1))
     
-    def table_walk_through_for_lambda(self, lambda_prime):
-        """
-        Changes the rule table based on the lambda parameter.
-        
-        Args:
-        lambda_prime (float): The target lambda value to increase to.
-        """
-        rule_set_size = self.k ** (2 * self.r + 1)
-        self.rule_set = np.zeros(rule_set_size)
-        self.quiescent_state = np.random.choice(list(range(self.k)))
-        # Calculate the number of states that need to change
-        num_states_to_change = int(lambda_prime * (self.k ** (2 * self.r + 1)))
-        # Select the states to change
-        states_to_change = np.random.choice(range(self.k ** (2 * self.r + 1)), num_states_to_change, replace=False)
-        # Set the new states for the selected transitions
-        for state in states_to_change:
-            # Choose a random non-quiescent state
-            non_quiescent_states = [s for s in range(self.k) if s != self.quiescent_state]
-            self.rule_set[state] = np.random.choice(non_quiescent_states)
-        # Update the current lambda value
-        self.lambda_value = lambda_prime
+    def initialize_population(self):
+        # Initialize your population of strategies here
+        pass
+    
+    def evaluate_fitness(self):
+        # Implement the logic to evaluate the fitness of each strategy
+        pass
+    
+    def select(self):
+        # Implement selection logic here
+        pass
+    
+    def crossover_and_mutate(self):
+        # Implement crossover and mutation logic here
+        pass
+
+    def evolve_strategies(self):
+        # Wrapper function to evolve strategies using GA components
+        self.evaluate_fitness()
+        self.select()
+        self.crossover_and_mutate()
 
     def check_rule(self, inp):
         """Returns the new state based on the input states.
@@ -78,7 +80,7 @@ class CASim(Model):
         self.t = 0
         self.config = np.zeros([self.height, self.width])
         self.config[0, :] = self.setup_initial_row()
-        self.table_walk_through_for_lambda(self.lambda_value)
+        self.initialize_population()
 
     def draw(self):
         """Draws the current state of the grid."""
