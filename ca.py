@@ -1,6 +1,3 @@
-# Name: Ayoub Oqla
-# Studentnr: 14281171
-# BSc informatica
 import numpy as np
 import hashlib
 from model import Model
@@ -15,18 +12,10 @@ class CASim(Model):
         self.quiescent_state = 0
         self.state_hashes = set()
         self.transient_length = None
-        self.make_param('r', 1)
-        self.make_param('k', 2)
-        self.make_param('width', 50)
-        self.make_param('height', 50)
-        self.make_param('random', True)
-        self.make_param('seed', 50)
-        self.make_param('lambda_value', 0.0)
-
-    def hash_state(self):
-        # Convert the current state to a hashable form (e.g., a string)
-        state_str = ''.join(map(str, self.config.flatten()))
-        return hashlib.md5(state_str.encode()).hexdigest()
+        self.make_param('pop_size', 100)
+        self.make_param('mutation', 0.02)
+        self.make_param('crossover', 0.7)
+        self.make_param('generation', 100)
 
     def setter_rule(self, val):
         """Setter for the rule parameter, clipping its value between 0 and the
@@ -106,25 +95,21 @@ class CASim(Model):
         plt.title('t = %d' % self.t)
 
     def step(self):
+        """Performs a single step of the simulation by advancing time (and thus
+        row) and applying the rule to determine the state of the cells."""
         self.t += 1
         if self.t >= self.height:
             return True
 
         for patch in range(self.width):
-            indices = [i % self.width for i in range(patch - self.r, patch + self.r + 1)]
+            # We want the items r to the left and to the right of this patch,
+            # while wrapping around (e.g. index -1 is the last item on the row).
+            # Since slices do not support this, we create an array with the
+            # indices we want and use that to index our grid.
+            indices = [i % self.width
+                    for i in range(patch - self.r, patch + self.r + 1)]
             values = self.config[self.t - 1, indices]
             self.config[self.t, patch] = self.check_rule(values)
-
-        # Hash the current state and check for repeats
-        current_hash = self.hash_state()
-        if current_hash in self.state_hashes:
-            if self.transient_length is None:
-                self.transient_length = self.t
-                return True
-        else:
-            self.state_hashes.add(current_hash)
-
-        return False
 
 if __name__ == '__main__':
     sim = CASim()
