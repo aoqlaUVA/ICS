@@ -16,19 +16,19 @@ class CASim(Model):
         self.t = 0
         self.rule_set = []
         self.config = None
-
+        
         self.population = []  # Population of strategies
         self.fitness_scores = []  # Fitness scores for each strategy
 
-        self.make_param('pop_size', 100)
-        self.make_param('mutation', 0.02)
-        self.make_param('chromosome', 4)
-        self.make_param('crossover', 0.7)
-        self.make_param('generation', 100)
+        self.make_param('population_size', 100)
+        self.make_param('mutation_rate', 0.02)
+        self.make_param('chromosome_length', 4)
+        self.make_param('crossover_rate', 0.7)
+        self.make_param('population', 100, self.initialize_population)
     
     def initialize_population(self):
         # Initialize your population of strategies here
-        pass
+        return [''.join(np.random.choice(['0', '1']) for _ in range(self.chromosome_length)) for _ in range(self.population_size)]
     
     def evaluate_fitness(self):
         # Implement the logic to evaluate the fitness of each strategy
