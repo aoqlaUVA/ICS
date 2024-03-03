@@ -9,10 +9,9 @@ SCORES = {
     ('D', 'D'): (2, 2)
 }
 
-
 class CASim(Model):
     def __init__(self):
-        Model.__init__(self)
+        super().__init__()  # Ensuring proper initialization of the parent class.
 
         self.t = 0
         self.rule_set = []
@@ -21,24 +20,48 @@ class CASim(Model):
         self.population = []  # Population of strategies
         self.fitness_scores = []  # Fitness scores for each strategy
 
-        self.make_param('population_size', 100)
-        self.make_param('mutation_rate', 0.02)
-        self.make_param('chromosome_length', 4)
-        self.make_param('crossover_rate', 0.7)
-        self.make_param('population', 100, self.initialize_population)
+        # Setting parameters directly without make_param for clarity in this standalone snippet
+        self.population_size = 100
+        self.mutation_rate = 0.02
+        self.chromosome_length = 8  # Adjusted to match binary string length from your original population initialization
+        self.crossover_rate = 0.7
 
+        # Directly initializing the population here
+        self.population = self.initialize_population()
     def initialize_population(self):
         # Initialize your population of strategies here
         return [''.join(np.random.choice(['0', '1'])
                         for _ in range(self.chromosome_length))
                 for _ in range(self.population_size)]
 
-    def play_game(self, strategy1, strategy2):
-        # Assuming a simple strategy where the last bit decides the move
-        # 'C' for cooperate, 'D' for defect
-        move1 = 'C' if strategy1[-1] == '0' else 'D'
-        move2 = 'C' if strategy2[-1] == '0' else 'D'
-        return SCORES(move1, move2)
+    def get_move(self, strategy, opponent_history):
+        if strategy == 'always_cooperate':
+            return 'C'
+        elif strategy == 'always_defect':
+            return 'D'
+        elif strategy == 'tit_for_tat':
+            return opponent_history[-1]
+        else:
+            # For binary-encoded strategies, use the last 3 moves to decide
+            if len(opponent_history) >= 3:
+                idx = int(''.join('1' if m == 'D' else '0' for m in opponent_history[-3:]), 2)
+            else:
+                idx = 0  # Default to cooperation if not enough history
+            return 'D' if strategy[idx] == '1' else 'C'
+
+
+    def play_game(self, strategy1, strategy2, rounds=10):
+        moves1, moves2 = ['C'], ['C']  # Initialize with cooperation
+        for _ in range(rounds):
+            move1 = self.get_move(strategy1, moves2)
+            move2 = self.get_move(strategy2, moves1)
+
+            moves1.append(move1)
+            moves2.append(move2)
+
+        return sum(SCORES[(m1, m2)][0] for m1, m2 in zip(moves1[1:], moves2[1:])), \
+            sum(SCORES[(m1, m2)][1] for m1, m2 in zip(moves1[1:], moves2[1:]))
+
 
     def evaluate_fitness(self):
         #
@@ -46,7 +69,7 @@ class CASim(Model):
         for i in range(self.population_size):
             for j in range(self.population_size):
                 if i != j:
-                    score1, score2 = self.play_game(
+                    score1, _ = self.play_game(
                         self.population[i], self.population[j])
                     self.fitness_scores[i] += score1
 
@@ -62,9 +85,22 @@ class CASim(Model):
         self.population = [self.population[i] for i in selected_indices]
 
     def crossover_and_mutate(self):
-        # Implement crossover and mutation logic here
+        new_population = []
+        while len(new_population) < self.population_size:
+            parent1, parent2 = np.random.choice(self.population, 2, replace=False)
+            child1, child2 = self.crossover(parent1, parent2)
+            new_population.append(self.mutate(child1))
+            new_population.append(self.mutate(child2))
+        self.population = new_population
 
-        pass
+    def crossover(self, parent1, parent2):
+        if np.random.random() < self.crossover_rate:
+            point = np.random.randint(1, self.chromosome_length - 1)
+            return parent1[:point] + parent2[point:], parent2[:point] + parent1[point:]
+        return parent1, parent2
+
+    def mutate(self, chromosome):
+        return ''.join(bit if np.random.random() > self.mutation_rate else str(1 - int(bit)) for bit in chromosome)
 
     def evolve_strategies(self):
         # Wrapper function to evolve strategies using GA components
@@ -72,30 +108,6 @@ class CASim(Model):
         self.select()
         self.crossover_and_mutate()
 
-    def check_rule(self, inp):
-        """Returns the new state based on the input states.
-
-        The input state will be an array of 2r+1 items between 0 and k, the
-        neighbourhood which the state of the new cell depends on."""
-        rev_inp = inp[::-1]
-        sum = 0
-        for i in range(len(rev_inp)):
-            x = rev_inp[i] * self.k ** i
-            sum = sum + int(x)
-
-        rev_rule = self.rule_set[::-1]
-        return rev_rule[sum]
-
-    def setup_initial_row(self):
-        """Returns an array of length `width' with the initial state for each of
-        the cells in the first row. Values should be between 0 and k."""
-        if self.random:
-            np.random.seed(self.seed)
-            init_row = np.random.randint(0, self.k, size=self.width)
-        else:
-            init_row = np.zeros(self.width, dtype=int)
-            init_row[int(self.width / 2)] = self.k - 1
-        return init_row
 
     def reset(self):
         """Initializes the configuration of the cells and converts the entered
@@ -137,9 +149,27 @@ class CASim(Model):
             values = self.config[self.t - 1, indices]
             self.config[self.t, patch] = self.check_rule(values)
 
+    def test_strategies(self):
+        # Define strategy pairs to test
+        strategy_pairs = [
+            ('always_cooperate', 'always_cooperate'),
+            ('always_cooperate', 'always_defect'),
+            ('always_defect', 'always_cooperate'),
+            ('always_defect', 'always_defect'),
+            ('always_cooperate', 'tit_for_tat'),
+            ('tit_for_tat', 'always_defect'),
+            ('tit_for_tat', 'tit_for_tat')
+        ]
+
+        # Run each pair and print results
+        for strategy1, strategy2 in strategy_pairs:
+            score1, score2 = self.play_game(strategy1, strategy2)
+            print(f"Game between {strategy1} and {strategy2}: {score1} - {score2}")
+
 
 if __name__ == '__main__':
     sim = CASim()
-    from pycx_gui import GUI
-    cx = GUI(sim)
-    cx.start()
+    sim.test_strategies()
+    # from pycx_gui import GUI
+    # cx = GUI(sim)
+    # cx.start()
