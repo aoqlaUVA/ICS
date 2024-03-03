@@ -1,7 +1,6 @@
 import numpy as np
 import hashlib
 from model import Model
-import matplotlib.pyplot as plt
 
 SCORES = {
     ('C', 'C'): (1, 1),
@@ -20,8 +19,6 @@ class CASim(Model):
         self.make_param('crossover_rate', 0.7)
         self.make_param('num_rounds', 50)
         self.make_param('generations', 100)
-
-        self.scores = None
 
         self.strategies = [
             "Always Defect",
@@ -124,21 +121,17 @@ class CASim(Model):
         return rule_table
     
     def run_tournament_with_rule_table(self, rule_table):
-        scores = []
-        for opponent_strategy in self.strategies:
-            opponent_rule_table = self.encode_rule_table(opponent_strategy)
-            score = 0
-            history1 = history2 = ['']
-            for _ in range(self.num_rounds):
-                decision1 = rule_table.get((history1[-1], history2[-1]), 'C')
-                decision2 = opponent_rule_table.get((history2[-1], history1[-1]), 'C')
-                payoff1, payoff2 = SCORES[(decision1, decision2)]
-                score += payoff1
-                history1.append(decision1)
-                history2.append(decision2)
-            scores.append(score)
-        self.scores = np.array(scores)  # Store the scores
-        return scores
+        score1 = score2 = 0
+        history1 = history2 = ['']
+        for _ in range(self.num_rounds):
+            decision1 = rule_table.get((history1[-1], history2[-1]), 'C')
+            decision2 = rule_table.get((history2[-1], history1[-1]), 'C')
+            payoff1, payoff2 = SCORES[(decision1, decision2)]
+            score1 += payoff1
+            score2 += payoff2
+            history1.append(decision1)
+            history2.append(decision2)
+        return score1
   
     def check_rule(self, inp):
         """Returns the new state based on the input states.
@@ -205,16 +198,6 @@ class CASim(Model):
             values = self.config[self.t - 1, indices]
             self.config[self.t, patch] = self.check_rule(values)
 
-    def print_results(self):
-        print("Baseline Performance Evaluation")
-        print("--------------------------------")
-        print("Strategy\tAverage Score")
-        print("--------------------------------")
-        for i, strategy in enumerate(self.strategies):
-            avg_score = np.mean(self.scores[i])
-            print(f"{strategy}\t{avg_score:.2f}")
-
-
 # if __name__ == '__main__':
 #     sim = CASim()
 #     from pycx_gui import GUI
@@ -223,16 +206,10 @@ class CASim(Model):
 
 if __name__ == "__main__":
     sim = CASim()
-    sim.initialize_rule_tables()
-    rule_table_to_test = sim.rule_tables[1]  # Choose the first rule table for testing
-    scores = sim.run_tournament_with_rule_table(rule_table_to_test)
-    sim.print_results()
-
-    # Plotting the results
-    x = np.arange(len(sim.strategies))
-    average_scores = np.mean(sim.scores, axis=0)
-    plt.bar(x, average_scores)
-    plt.xticks(x, sim.strategies, rotation=45)
-    plt.ylabel('Average Score')
-    plt.title('Average Scores of Strategies')
-    plt.show()
+    evolved_population, all_fitness_scores = sim.evolve_strategies()
+    print("Evolved Population:")
+    for strategy in evolved_population:
+        print(strategy)
+    print("Fitness Scores over Generations:")
+    for gen, fitness_scores in enumerate(all_fitness_scores):
+        print(f"Generation {gen + 1}: {fitness_scores}")
