@@ -1,6 +1,7 @@
 import numpy as np
 import hashlib
 from model import Model
+import matplotlib.pyplot as plt
 
 SCORES = {
     ('C', 'C'): (1, 1),
@@ -17,124 +18,128 @@ class CASim(Model):
         self.make_param('mutation_rate', 0.02)
         self.make_param('chromosome_length', 10)
         self.make_param('crossover_rate', 0.7)
-        self.make_param('num_rounds', 10)
+        self.make_param('num_rounds', 50)
         self.make_param('generations', 100)
 
-        self.initialize_population()
+        self.scores = None
 
-    def initialize_population(self):
-        # Initialize the population with random strategies
-        self.population = [self.encode_strategy(''.join(np.random.choice(['C', 'D']) for _ in range(self.chromosome_length))) 
-                           for _ in range(self.population_size)]
-
-    def encode_strategy(self, strategy):
-        # Encode the strategy as a binary string
-        return ''.join(['0' if decision == 'C' else '1' for decision in strategy])
-
-    def decode_strategy(self, encoded_strategy):
-        # Decode the binary string into a strategy
-        return ''.join(['C' if gene == '0' else 'D' for gene in encoded_strategy])
+        self.strategies = [
+            "Always Defect",
+            "Always Cooperate",
+            "Tit-for-Tat"
+        ]
+        self.num_strategies = len(self.strategies)
+        self.rule_tables = []
 
     def encode_rule_table(self, strategy):
         rule_table = {}
-        for i in range(2 ** (2 * self.num_rounds)):
-            binary_string = bin(i)[2:].zfill(2 * self.num_rounds)
-            history_pair = tuple(binary_string[j:j + 2] for j in range(0, len(binary_string), 2))
-            rule_table[history_pair] = strategy(i)
+        if strategy == "Always Defect":
+            rule_table[('C', 'C')] = 'D'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'D'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Always Cooperate":
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'C'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'C'
+        elif strategy == "Tit-for-Tat":
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'D'
         return rule_table
     
     def initialize_rule_tables(self):
         self.rule_tables = [self.encode_rule_table(strategy) for strategy in self.strategies]
 
-    def play_prisoners_dilemma(self, rule_table1, rule_table2):
-        score1 = score2 = 0
-        history1 = history2 = []
-        for _ in range(self.num_rounds):
-            history_pair1 = tuple(history1[-1:]) + tuple(history2[-1:])
-            history_pair2 = tuple(history2[-1:]) + tuple(history1[-1:])
-            decision1 = rule_table1.get(history_pair1, 'C')
-            decision2 = rule_table2.get(history_pair2, 'C')
-            payoff1, payoff2 = SCORES[(decision1, decision2)]
-            score1 += payoff1
-            score2 += payoff2
-            history1.append(decision1)
-            history2.append(decision2)
-        return score1, score2
-
-    def run_tournament(self):
-        self.initialize_rule_tables()
-        self.scores = np.zeros((self.num_strategies, self.num_strategies))
-        for i in range(self.num_strategies):
-            for j in range(i, self.num_strategies):
-                score1, score2 = self.play_prisoners_dilemma(self.rule_tables[i], self.rule_tables[j])
-                self.scores[i, j] = score1
-                self.scores[j, i] = score2
-    
-    def print_results(self):
-        print("Baseline Performance Evaluation")
-        print("--------------------------------")
-        print("Strategy\tAverage Score")
-        print("--------------------------------")
-        for i in range(self.num_strategies):
-            avg_score = np.mean(self.scores[i])
-            print(f"{self.strategy_names[i]}\t{avg_score:.2f}")
-
-    def tournament_selection(self, fitness_scores, tournament_size):
-        # Perform tournament selection
-        selected_indices = []
+    def initialize_population(self):
+        population = []
         for _ in range(self.population_size):
-            tournament_indices = np.random.choice(self.population_size, tournament_size, replace=False)
-            tournament_fitness = [fitness_scores[i] for i in tournament_indices]
-            winner_index = tournament_indices[np.argmax(tournament_fitness)]
-            selected_indices.append(winner_index)
-        return [self.population[i] for i in selected_indices]
+            chromosome = ''.join(np.random.choice(['C', 'D']) for _ in range(self.chromosome_length))
+            population.append(chromosome)
+        return population
+    
+    def evaluate_fitness(self, population):
+        fitness_scores = []
+        for strategy in population:
+            rule_table = self.decode_rule_table(strategy)
+            score = self.run_tournament_with_rule_table(rule_table)
+            fitness_scores.append(score)
+        return fitness_scores
 
-    def single_point_crossover(self, parent1, parent2):
-        # Perform single-point crossover
-        crossover_point = np.random.randint(1, len(parent1))  # Choose a random crossover point
-        offspring1 = parent1[:crossover_point] + parent2[crossover_point:]
-        offspring2 = parent2[:crossover_point] + parent1[crossover_point:]
-        return offspring1, offspring2
-
-    def mutate_strategy(self, strategy, mutation_rate):
-        # Perform mutation
-        mutated_strategy = ''
-        for bit in strategy:
-            if np.random.rand() < mutation_rate:
-                mutated_strategy += '1' if bit == '0' else '0'  # Flip the bit with the mutation rate probability
-            else:
-                mutated_strategy += bit
-        return mutated_strategy
-
+    def select_fittest(self, population, fitness_scores):
+        sorted_indices = np.argsort(fitness_scores)[::-1]  # Sort indices in descending order of fitness
+        selected_population = [population[i] for i in sorted_indices[:self.population_size]]
+        return selected_population
+    
+    def crossover(self, population):
+        num_parents = len(population)
+        num_offspring = self.population_size - num_parents
+        offspring = []
+        for _ in range(num_offspring):
+            parent1, parent2 = np.random.choice(population, size=2, replace=False)
+            crossover_point = np.random.randint(1, self.chromosome_length)  # Choose a random crossover point
+            offspring1 = parent1[:crossover_point] + parent2[crossover_point:]
+            offspring2 = parent2[:crossover_point] + parent1[crossover_point:]
+            offspring.append(offspring1)
+            offspring.append(offspring2)
+        return offspring
+    
+    def mutate(self, population):
+        mutated_population = []
+        for strategy in population:
+            mutated_strategy = ''
+            for bit in strategy:
+                if np.random.rand() < self.mutation_rate:
+                    mutated_strategy += 'D' if bit == 'C' else 'C'  # Flip the bit with the mutation rate probability
+                else:
+                    mutated_strategy += bit
+            mutated_population.append(mutated_strategy)
+        return mutated_population
+    
     def evolve_strategies(self):
-        # Evolve the population through generations
+        population = self.initialize_population()
+        all_fitness_scores = []
         for _ in range(self.generations):
-            self.evaluate_fitness()
+            fitness_scores = self.evaluate_fitness(population)
+            selected_population = self.select_fittest(population, fitness_scores)
+            offspring = self.crossover(selected_population)
+            mutated_offspring = self.mutate(offspring)
+            population = selected_population + mutated_offspring
+            all_fitness_scores.append(fitness_scores)
+        return population, all_fitness_scores
 
-            # Selection
-            selected_strategies = self.tournament_selection(self.fitness_scores, tournament_size=5)
-
-            # Crossover
-            new_population = []
-            for i in range(0, len(selected_strategies), 2):
-                parent1 = selected_strategies[i]
-                parent2 = selected_strategies[i + 1]
-                offspring1, offspring2 = self.single_point_crossover(parent1, parent2)
-                new_population.extend([offspring1, offspring2])
-
-            # Mutation
-            self.population = [self.mutate_strategy(strategy, self.mutation_rate) for strategy in new_population]
-
-    def evaluate_fitness(self):
-        # Evaluate the fitness of each strategy based on their performance in the Prisoner's Dilemma game
-        self.fitness_scores = []
-        for strategy in self.population:
-            total_score = 0
-            for opponent_strategy in self.population:
-                score, _ = self.play_prisoners_dilemma(strategy, opponent_strategy)
-                total_score += score
-            self.fitness_scores.append(total_score)
-
+    def decode_rule_table(self, chromosome):
+        rule_table = {}
+        for i in range(len(chromosome)):
+            row = i // 2
+            col = i % 2
+            move = chromosome[i]
+            if col == 0:
+                current_key = ('C', 'C') if row == 0 else ('C', 'D')
+            else:
+                current_key = ('D', 'C') if row == 0 else ('D', 'D')
+            rule_table[current_key] = move
+        return rule_table
+    
+    def run_tournament_with_rule_table(self, rule_table):
+        scores = []
+        for opponent_strategy in self.strategies:
+            opponent_rule_table = self.encode_rule_table(opponent_strategy)
+            score = 0
+            history1 = history2 = ['']
+            for _ in range(self.num_rounds):
+                decision1 = rule_table.get((history1[-1], history2[-1]), 'C')
+                decision2 = opponent_rule_table.get((history2[-1], history1[-1]), 'C')
+                payoff1, payoff2 = SCORES[(decision1, decision2)]
+                score += payoff1
+                history1.append(decision1)
+                history2.append(decision2)
+            scores.append(score)
+        self.scores = np.array(scores)  # Store the scores
+        return scores
+  
     def check_rule(self, inp):
         """Returns the new state based on the input states.
 
@@ -200,6 +205,16 @@ class CASim(Model):
             values = self.config[self.t - 1, indices]
             self.config[self.t, patch] = self.check_rule(values)
 
+    def print_results(self):
+        print("Baseline Performance Evaluation")
+        print("--------------------------------")
+        print("Strategy\tAverage Score")
+        print("--------------------------------")
+        for i, strategy in enumerate(self.strategies):
+            avg_score = np.mean(self.scores[i])
+            print(f"{strategy}\t{avg_score:.2f}")
+
+
 # if __name__ == '__main__':
 #     sim = CASim()
 #     from pycx_gui import GUI
@@ -208,5 +223,16 @@ class CASim(Model):
 
 if __name__ == "__main__":
     sim = CASim()
-    sim.run_tournament()
+    sim.initialize_rule_tables()
+    rule_table_to_test = sim.rule_tables[1]  # Choose the first rule table for testing
+    scores = sim.run_tournament_with_rule_table(rule_table_to_test)
     sim.print_results()
+
+    # Plotting the results
+    x = np.arange(len(sim.strategies))
+    average_scores = np.mean(sim.scores, axis=0)
+    plt.bar(x, average_scores)
+    plt.xticks(x, sim.strategies, rotation=45)
+    plt.ylabel('Average Score')
+    plt.title('Average Scores of Strategies')
+    plt.show()
