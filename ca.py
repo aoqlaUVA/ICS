@@ -19,10 +19,13 @@ class CASim(Model):
         self.make_param('chromosome_length', 16)
         self.make_param('num_rounds', 16)
         self.make_param('generations', 100)
+        self.make_param('inherit', 10)
 
         self.population = []
-        self.averages = []
+
         self.scores = None
+
+        self.averages = []
 
         self.strategies = [
             "Always Defect",
@@ -238,7 +241,7 @@ class CASim(Model):
     def select_fittest(self, population, fitness_scores):
         sorted_indices = np.argsort(fitness_scores)[::-1]  # Sort indices in descending order of fitness
         selected_population = [population[i] for i in sorted_indices[:self.population_size]]
-        return selected_population[:5]
+        return selected_population[:self.inherit]
     
     def crossover(self, population):
         offspring = []
@@ -279,27 +282,30 @@ class CASim(Model):
                 history1.append(decision1)
                 history2.append(decision2)
         return score
+
     
     def reset(self):
         """Initializes the configuration of the cells and converts the entered
         rule number to a rule set."""
 
         self.t = 0
+        self.averages = []
         self.initialize_population()
 
     def draw(self):
         """Draws the current state of the grid."""
         import matplotlib.pyplot as plt
 
-        x = np.arange(len(self.population) - 1)
         plt.cla()
-        if self.scores is None:
-            plt.bar(0, 0)
-        else:
-            # Make sure self.scores matches the length of x
-            scores_to_plot = self.averages[:len(x)]
-            plt.bar(x, scores_to_plot)
-        plt.xticks(x, np.arange(len(self.population) - 1), rotation=45)
+        x = np.arange(len(self.averages))
+        # if self.scores is None:
+        #     plt.bar(0, 0)
+        # else:
+        #     # Make sure self.scores matches the length of x
+        #     scores_to_plot = self.scores[:len(x)]
+        print(x)
+        print(self.averages)
+        plt.bar(x, self.averages)
         plt.ylabel('Score')
         plt.title('Average Scores of Strategies')
         plt.show()
@@ -310,7 +316,8 @@ class CASim(Model):
         self.t += 1
         if self.t >= self.generations:
             return True
-        
+
+        print("step")
         self.evolve_strategies()
 
     def print_results(self):
@@ -318,8 +325,8 @@ class CASim(Model):
         print("--------------------------------")
         print("Strategy\tAverage Score")
         print("--------------------------------")
-        for i in range(0, self.population_size+1):
-            print(f"{i}\t{self.total_score[i]}")
+        for i in range(0, self.population_size):
+            print(f"{i}\t{self.averages[i]}")
 
         for chromosome in self.population:
             print(chromosome)
@@ -328,11 +335,9 @@ if __name__ == "__main__":
     sim = CASim()
     sim.initialize_rule_tables()
     sim.population = sim.initialize_population()
-    sim.total_score = np.zeros(sim.population_size)
     # for _ in range(sim.generations):
     #     sim.evolve_strategies()
     from pycx_gui import GUI
     cx = GUI(sim)
     cx.start()
-    print(sim.averages)
-    # sim.print_results()
+    sim.print_results()
