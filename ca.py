@@ -21,7 +21,7 @@ class CASim(Model):
         self.make_param('generations', 100)
 
         self.population = []
-
+        self.averages = []
         self.scores = None
 
         self.strategies = [
@@ -259,6 +259,7 @@ class CASim(Model):
         mutated_offspring = self.mutate(offspring)
         self.population = selected_population + mutated_offspring
         self.scores = fitness_scores
+        self.averages.append(np.mean(fitness_scores))
 
     def decode_rule_table(self, chromosome):
         situations = [(a, b, c, d) for a in ['C', 'D'] for b in ['C', 'D'] for c in ['C', 'D'] for d in ['C', 'D']]
@@ -278,7 +279,6 @@ class CASim(Model):
                 history1.append(decision1)
                 history2.append(decision2)
         return score
-
     
     def reset(self):
         """Initializes the configuration of the cells and converts the entered
@@ -297,7 +297,7 @@ class CASim(Model):
             plt.bar(0, 0)
         else:
             # Make sure self.scores matches the length of x
-            scores_to_plot = self.scores[:len(x)]
+            scores_to_plot = self.averages[:len(x)]
             plt.bar(x, scores_to_plot)
         plt.xticks(x, np.arange(len(self.population) - 1), rotation=45)
         plt.ylabel('Score')
@@ -319,7 +319,7 @@ class CASim(Model):
         print("Strategy\tAverage Score")
         print("--------------------------------")
         for i in range(0, self.population_size+1):
-            print(f"{i}\t{self.scores[i]}")
+            print(f"{i}\t{self.total_score[i]}")
 
         for chromosome in self.population:
             print(chromosome)
@@ -328,9 +328,11 @@ if __name__ == "__main__":
     sim = CASim()
     sim.initialize_rule_tables()
     sim.population = sim.initialize_population()
+    sim.total_score = np.zeros(sim.population_size)
     # for _ in range(sim.generations):
     #     sim.evolve_strategies()
     from pycx_gui import GUI
     cx = GUI(sim)
     cx.start()
-    sim.print_results()
+    print(sim.averages)
+    # sim.print_results()
