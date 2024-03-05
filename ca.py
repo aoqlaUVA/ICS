@@ -321,15 +321,17 @@ class CASim(Model):
         self.evolve_strategies()
 
     def print_results(self):
+        print(len(self.averages))
+        print(len(self.population))
+        print(self.population_size)
+
+
         print("Baseline Performance Evaluation")
         print("--------------------------------")
-        print("Strategy\tAverage Score")
+        print("Strategy\tAverage Score\tChromosome")
         print("--------------------------------")
-        for i in range(0, self.population_size):
-            print(f"{i}\t{self.averages[i]}")
-
-        for chromosome in self.population:
-            print(chromosome)
+        for i in range(0, self.population_size - 1):
+            print(f"{i}\t{self.averages[i]}\t{self.population[i]}")
 
 if __name__ == "__main__":
     sim = CASim()
