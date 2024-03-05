@@ -4,10 +4,10 @@ from model import Model
 import matplotlib.pyplot as plt
 
 SCORES = {
-    ('C', 'C'): (1, 1),
-    ('C', 'D'): (3, 0),
-    ('D', 'C'): (0, 3),
-    ('D', 'D'): (2, 2)
+    ('C', 'C'): (3, 3),
+    ('C', 'D'): (0, 5),
+    ('D', 'C'): (5, 0),
+    ('D', 'D'): (1, 1)
 }
 
 class CASim(Model):
@@ -15,18 +15,27 @@ class CASim(Model):
         Model.__init__(self)
 
         self.make_param('population_size', 100)
-        self.make_param('mutation_rate', 0.02)
+        self.make_param('mutation_rate', 0.05)
         self.make_param('chromosome_length', 10)
-        self.make_param('crossover_rate', 0.7)
+        self.make_param('crossover_rate', 0.8)
         self.make_param('num_rounds', 50)
         self.make_param('generations', 100)
 
         self.scores = None
 
+        self.population = []
+
         self.strategies = [
             "Always Defect",
             "Always Cooperate",
-            "Tit-for-Tat"
+            "Tit-for-Tat",
+            "Grudge",
+            "Nasty Tit-for-Tat",
+            "Suspicious Tit for Tat",
+            "Tit for Two Tats",
+            # "Two Tits for Tat",
+            "Discriminating Altruist",
+            "Pavlov"
         ]
         self.num_strategies = len(self.strategies)
         self.rule_tables = []
@@ -34,16 +43,54 @@ class CASim(Model):
     def encode_rule_table(self, strategy):
         rule_table = {}
         if strategy == "Always Defect":
+            rule_table[('', '')] = 'D'
             rule_table[('C', 'C')] = 'D'
             rule_table[('C', 'D')] = 'D'
             rule_table[('D', 'C')] = 'D'
             rule_table[('D', 'D')] = 'D'
         elif strategy == "Always Cooperate":
+            rule_table[('', '')] = 'C'
             rule_table[('C', 'C')] = 'C'
             rule_table[('C', 'D')] = 'C'
             rule_table[('D', 'C')] = 'C'
             rule_table[('D', 'D')] = 'C'
         elif strategy == "Tit-for-Tat":
+            rule_table[('', '')] = 'C'
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Grudge":
+            rule_table[('', '')] = 'C'
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'D'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Nasty Tit-for-Tat":
+            rule_table[('', '')] = 'D'
+            rule_table[('C', 'C')] = 'D'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Suspicious Tit for Tat":
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Tit for Two Tats":
+            rule_table[('', '')] = 'C'
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'C'
+            rule_table[('D', 'C')] = 'C'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Discriminating Altruist":
+            rule_table[('', '')] = 'C'
+            rule_table[('C', 'C')] = 'C'
+            rule_table[('C', 'D')] = 'D'
+            rule_table[('D', 'C')] = 'D'
+            rule_table[('D', 'D')] = 'D'
+        elif strategy == "Pavlov":
+            rule_table[('', '')] = 'C'
             rule_table[('C', 'C')] = 'C'
             rule_table[('C', 'D')] = 'D'
             rule_table[('D', 'C')] = 'C'
@@ -71,19 +118,23 @@ class CASim(Model):
     def select_fittest(self, population, fitness_scores):
         sorted_indices = np.argsort(fitness_scores)[::-1]  # Sort indices in descending order of fitness
         selected_population = [population[i] for i in sorted_indices[:self.population_size]]
-        return selected_population
+        return selected_population[:5]
     
     def crossover(self, population):
         num_parents = len(population)
         num_offspring = self.population_size - num_parents
         offspring = []
-        for _ in range(num_offspring):
+        i = 0
+        while True:
             parent1, parent2 = np.random.choice(population, size=2, replace=False)
             crossover_point = np.random.randint(1, self.chromosome_length)  # Choose a random crossover point
             offspring1 = parent1[:crossover_point] + parent2[crossover_point:]
             offspring2 = parent2[:crossover_point] + parent1[crossover_point:]
             offspring.append(offspring1)
             offspring.append(offspring2)
+            i += 2
+            if i >= num_offspring:
+                break
         return offspring
     
     def mutate(self, population):
@@ -100,14 +151,20 @@ class CASim(Model):
     
     def evolve_strategies(self):
         population = self.initialize_population()
-        all_fitness_scores = []
+        self.population = population
+        all_fitness_scores = np.zeros(self.population_size)
+
         for _ in range(self.generations):
             fitness_scores = self.evaluate_fitness(population)
             selected_population = self.select_fittest(population, fitness_scores)
             offspring = self.crossover(selected_population)
             mutated_offspring = self.mutate(offspring)
             population = selected_population + mutated_offspring
-            all_fitness_scores.append(fitness_scores)
+            self.population = population
+            all_fitness_scores = fitness_scores
+        print("Fitness score all")
+        print(all_fitness_scores)
+        self.scores = fitness_scores
         return population, all_fitness_scores
 
     def decode_rule_table(self, chromosome):
@@ -125,9 +182,10 @@ class CASim(Model):
     
     def run_tournament_with_rule_table(self, rule_table):
         scores = []
+        score = 0
         for opponent_strategy in self.strategies:
             opponent_rule_table = self.encode_rule_table(opponent_strategy)
-            score = 0
+            # score = 0
             history1 = history2 = ['']
             for _ in range(self.num_rounds):
                 decision1 = rule_table.get((history1[-1], history2[-1]), 'C')
@@ -136,9 +194,9 @@ class CASim(Model):
                 score += payoff1
                 history1.append(decision1)
                 history2.append(decision2)
-            scores.append(score)
-        self.scores = np.array(scores)  # Store the scores
-        return scores
+            # scores.append(score)
+        # self.scores = np.array(scores)  # Store the scores
+        return score
   
     def check_rule(self, inp):
         """Returns the new state based on the input states.
@@ -210,9 +268,11 @@ class CASim(Model):
         print("--------------------------------")
         print("Strategy\tAverage Score")
         print("--------------------------------")
-        for i, strategy in enumerate(self.strategies):
-            avg_score = np.mean(self.scores[i])
-            print(f"{strategy}\t{avg_score:.2f}")
+        for i in range(0, self.population_size+1):
+            print(f"{i}\t{self.scores[i]}")
+
+        for chromosome in self.population:
+            print(chromosome)
 
 
 # if __name__ == '__main__':
@@ -224,8 +284,7 @@ class CASim(Model):
 if __name__ == "__main__":
     sim = CASim()
     sim.initialize_rule_tables()
-    rule_table_to_test = sim.rule_tables[1]  # Choose the first rule table for testing
-    scores = sim.run_tournament_with_rule_table(rule_table_to_test)
+    sim.evolve_strategies()
     sim.print_results()
 
     # Plotting the results
