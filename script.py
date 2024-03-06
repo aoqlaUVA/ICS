@@ -17,7 +17,6 @@ def run_simulation(population_size, mutation_rate, generations, inherit, title):
     for _ in range(generations):
         sim.evolve_strategies()
 
-    # Plotting
     plt.bar(range(len(sim.averages)), sim.averages)
     plt.title(title)
     plt.xlabel('Generation')

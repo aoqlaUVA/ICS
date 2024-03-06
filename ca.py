@@ -1,6 +1,7 @@
 # Name: Ayoub Oqla & Samuel Ampadu
 # Studentnr: 14281171 & 13186523
 # BSc informatica
+
 import numpy as np
 import hashlib
 from model import Model
@@ -12,6 +13,7 @@ SCORES = {
     ('D', 'C'): (5, 0),
     ('D', 'D'): (1, 1)
 }
+
 
 class CASim(Model):
     def __init__(self):
@@ -271,14 +273,19 @@ class CASim(Model):
             rule_table[('D', 'D', 'D', 'D')] = 'D'
 
         return rule_table
-    
-    def initialize_rule_tables(self):
-        self.rule_tables = [self.encode_rule_table(strategy) for strategy in self.strategies]
 
+    # Encode the rule tables for the chosen strategies and store in the instance
+    def initialize_rule_tables(self):
+        self.rule_tables = [self.encode_rule_table(
+            strategy) for strategy in self.strategies]
+
+    # Create population based on chromosome length and population size
     def initialize_population(self):
-        population = [''.join(np.random.choice(['C', 'D']) for _ in range(self.chromosome_length)) for _ in range(self.population_size)]
+        population = [''.join(np.random.choice(['C', 'D']) for _ in range(
+            self.chromosome_length)) for _ in range(self.population_size)]
         return population
-    
+
+    # Keep track of all the scores of the population
     def evaluate_fitness(self, population):
         fitness_scores = []
         for strategy in population:
@@ -287,39 +294,55 @@ class CASim(Model):
             fitness_scores.append(score)
         return fitness_scores
 
+    # Sorts the population based on their score and picks the best players
     def select_fittest(self, population, fitness_scores):
-        sorted_indices = np.argsort(fitness_scores)[::-1]  # Sort indices in descending order of fitness
-        selected_population = [population[i] for i in sorted_indices[:self.population_size]]
+        # Sort indices in descending order of fitness
+        sorted_indices = np.argsort(fitness_scores)[::-1]
+        selected_population = [population[i]
+                               for i in sorted_indices[:self.population_size]]
         return selected_population[:self.inherit]
-    
+
+    # Crossover function to make offsprings from the fittest selected
     def crossover(self, population):
         offspring = []
         while len(offspring) < self.population_size - len(population):
             parent1, parent2 = np.random.choice(population, 2, replace=False)
             crossover_point = np.random.randint(1, self.chromosome_length)
-            offspring += [parent1[:crossover_point] + parent2[crossover_point:], parent2[:crossover_point] + parent1[crossover_point:]]
+            offspring += [parent1[:crossover_point] + parent2[crossover_point:],
+                          parent2[:crossover_point] + parent1[crossover_point:]]
         return offspring
-    
+
+    # Mutate chromosomes of the population
     def mutate(self, population):
-        mutated_population = [''.join(['D' if np.random.rand() < self.mutation_rate and bit == 'C' else 'C' if np.random.rand() < self.mutation_rate and bit == 'D' else bit for bit in strategy]) for strategy in population]
+        mutated_population = [''.join(['D' if np.random.rand()
+                                       < self.mutation_rate and bit == 'C'
+                                       else 'C' if np.random.rand(
+        ) < self.mutation_rate and bit == 'D' else bit for bit in strategy])
+            for strategy in population]
         return mutated_population
-    
+
+    # Control flow function, is executed each generation.
+    # Makes sure the next generation has new (mutated) players from the previous
+    # best parents. Keeps track of the average scores. 
     def evolve_strategies(self):
         fitness_scores = self.evaluate_fitness(self.population)
-        selected_population = self.select_fittest(self.population, fitness_scores)
+        selected_population = self.select_fittest(
+            self.population, fitness_scores)
         offspring = self.crossover(selected_population)
         mutated_offspring = self.mutate(offspring)
         self.population = selected_population + mutated_offspring
         self.scores = fitness_scores
         self.averages.append(np.mean(fitness_scores))
 
-
     # Helper function. Makes rule tables of the chromosomes of the population.
     def decode_rule_table(self, chromosome):
-        situations = [(a, b, c, d) for a in ['C', 'D'] for b in ['C', 'D'] for c in ['C', 'D'] for d in ['C', 'D']]
-        rule_table = {situation: chromosome[i] for i, situation in enumerate(situations)}
+        situations = [(a, b, c, d) for a in ['C', 'D']
+                      for b in ['C', 'D'] for c in ['C', 'D'] 
+                      for d in ['C', 'D']]
+        rule_table = {situation: chromosome[i]
+                      for i, situation in enumerate(situations)}
         return rule_table
-    
+
     # Plays the game player vs opponents (10 strategies)
     def run_tournament_with_rule_table(self, rule_table):
         score = 0
@@ -327,15 +350,16 @@ class CASim(Model):
             opponent_rule_table = self.encode_rule_table(opponent_strategy)
             history1 = history2 = ['', '']
             for _ in range(self.num_rounds):
-                decision1 = rule_table.get(tuple(history1[-2:] + history2[-2:]), 'D')
-                decision2 = opponent_rule_table.get(tuple(history2[-2:] + history1[-2:]))
+                decision1 = rule_table.get(
+                    tuple(history1[-2:] + history2[-2:]), 'D')
+                decision2 = opponent_rule_table.get(
+                    tuple(history2[-2:] + history1[-2:]))
                 payoff1, payoff2 = SCORES[(decision1, decision2)]
                 score += payoff1
                 history1.append(decision1)
                 history2.append(decision2)
         return score
 
-    
     def reset(self):
         """Initializes the configuration of the cells and converts the entered
         rule number to a rule set."""
@@ -371,6 +395,7 @@ class CASim(Model):
         print("--------------------------------")
         for i in range(0, self.population_size - 1):
             print(f"{i}\t{self.averages[i]}")
+
 
 if __name__ == "__main__":
     sim = CASim()
