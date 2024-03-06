@@ -1,3 +1,6 @@
+# Name: Ayoub Oqla & Samuel Ampadu
+# Studentnr: 14281171 & 13186523
+# BSc informatica
 import numpy as np
 import hashlib
 from model import Model
@@ -42,8 +45,8 @@ class CASim(Model):
         self.num_strategies = len(self.strategies)
         self.rule_tables = []
 
+    # Stores the rule tables of the 10 chosen strategies.
     def encode_rule_table(self, strategy):
-        # Initialize rule table with default response for all 16 states
         rule_table = {}
 
         if strategy == "Always Defect":
@@ -310,11 +313,14 @@ class CASim(Model):
         self.scores = fitness_scores
         self.averages.append(np.mean(fitness_scores))
 
+
+    # Helper function. Makes rule tables of the chromosomes of the population.
     def decode_rule_table(self, chromosome):
         situations = [(a, b, c, d) for a in ['C', 'D'] for b in ['C', 'D'] for c in ['C', 'D'] for d in ['C', 'D']]
         rule_table = {situation: chromosome[i] for i, situation in enumerate(situations)}
         return rule_table
     
+    # Plays the game player vs opponents (10 strategies)
     def run_tournament_with_rule_table(self, rule_table):
         score = 0
         for opponent_strategy in self.strategies:
@@ -370,8 +376,6 @@ if __name__ == "__main__":
     sim = CASim()
     sim.initialize_rule_tables()
     sim.population = sim.initialize_population()
-    # for _ in range(sim.generations):
-    #     sim.evolve_strategies()
     from pycx_gui import GUI
     cx = GUI(sim)
     cx.start()
