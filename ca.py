@@ -35,7 +35,9 @@ class CASim(Model):
             "Nasty Tit-for-Tat",
             "Suspicious Tit for Tat",
             "Tit for Two Tats",
-            "Discriminating Altruist"
+            "Discriminating Altruist",
+            "Pavlov",
+            "Grimtrigger"
         ]
         self.num_strategies = len(self.strategies)
         self.rule_tables = []
@@ -220,6 +222,50 @@ class CASim(Model):
             rule_table[('D', 'D', 'C', 'D')] = 'D'
             rule_table[('D', 'D', 'D', 'C')] = 'D'
             rule_table[('D', 'D', 'D', 'D')] = 'D'
+        elif strategy == "Pavlov":
+            rule_table[('', '', '', '')] = 'C'
+            rule_table[('', '', 'C', 'C')] = 'C'
+            rule_table[('', '', 'C', 'D')] = 'D'
+            rule_table[('', '', 'D', 'C')] = 'D'
+            rule_table[('', '', 'D', 'D')] = 'C'
+            rule_table[('C', 'C', 'C', 'C')] = 'C'
+            rule_table[('C', 'C', 'C', 'D')] = 'C'
+            rule_table[('C', 'C', 'D', 'C')] = 'D'
+            rule_table[('C', 'C', 'D', 'D')] = 'D'
+            rule_table[('C', 'D', 'C', 'C')] = 'D'
+            rule_table[('C', 'D', 'C', 'D')] = 'D'
+            rule_table[('C', 'D', 'D', 'C')] = 'D'
+            rule_table[('C', 'D', 'D', 'D')] = 'D'
+            rule_table[('D', 'C', 'C', 'C')] = 'D'
+            rule_table[('D', 'C', 'C', 'D')] = 'C'
+            rule_table[('D', 'C', 'D', 'C')] = 'C'
+            rule_table[('D', 'C', 'D', 'D')] = 'D'
+            rule_table[('D', 'D', 'C', 'C')] = 'C'
+            rule_table[('D', 'D', 'C', 'D')] = 'D'
+            rule_table[('D', 'D', 'D', 'C')] = 'D'
+            rule_table[('D', 'D', 'D', 'D')] = 'D'
+        elif strategy == "Grimtrigger":
+            rule_table[('', '', '', '')] = 'C'
+            rule_table[('', '', 'C', 'C')] = 'C'
+            rule_table[('', '', 'C', 'D')] = 'D'
+            rule_table[('', '', 'D', 'C')] = 'D'
+            rule_table[('', '', 'D', 'D')] = 'D'
+            rule_table[('C', 'C', 'C', 'C')] = 'C'
+            rule_table[('C', 'C', 'C', 'D')] = 'C'
+            rule_table[('C', 'C', 'D', 'C')] = 'C'
+            rule_table[('C', 'C', 'D', 'D')] = 'C'
+            rule_table[('C', 'D', 'C', 'C')] = 'C'
+            rule_table[('C', 'D', 'C', 'D')] = 'C'
+            rule_table[('C', 'D', 'D', 'C')] = 'C'
+            rule_table[('C', 'D', 'D', 'D')] = 'D'
+            rule_table[('D', 'C', 'C', 'C')] = 'C'
+            rule_table[('D', 'C', 'C', 'D')] = 'C'
+            rule_table[('D', 'C', 'D', 'C')] = 'C'
+            rule_table[('D', 'C', 'D', 'D')] = 'C'
+            rule_table[('D', 'D', 'C', 'C')] = 'C'
+            rule_table[('D', 'D', 'C', 'D')] = 'C'
+            rule_table[('D', 'D', 'D', 'C')] = 'C'
+            rule_table[('D', 'D', 'D', 'D')] = 'D'
 
         return rule_table
     
@@ -298,13 +344,6 @@ class CASim(Model):
 
         plt.cla()
         x = np.arange(len(self.averages))
-        # if self.scores is None:
-        #     plt.bar(0, 0)
-        # else:
-        #     # Make sure self.scores matches the length of x
-        #     scores_to_plot = self.scores[:len(x)]
-        print(x)
-        print(self.averages)
         plt.bar(x, self.averages)
         plt.ylabel('Score')
         plt.title('Average Scores of Strategies')
@@ -317,21 +356,15 @@ class CASim(Model):
         if self.t >= self.generations:
             return True
 
-        print("step")
         self.evolve_strategies()
 
     def print_results(self):
-        print(len(self.averages))
-        print(len(self.population))
-        print(self.population_size)
-
-
         print("Baseline Performance Evaluation")
         print("--------------------------------")
-        print("Strategy\tAverage Score\tChromosome")
+        print("Strategy\tAverage Score")
         print("--------------------------------")
         for i in range(0, self.population_size - 1):
-            print(f"{i}\t{self.averages[i]}\t{self.population[i]}")
+            print(f"{i}\t{self.averages[i]}")
 
 if __name__ == "__main__":
     sim = CASim()
